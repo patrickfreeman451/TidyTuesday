@@ -64,17 +64,31 @@ circle_data <- circle_data |>
 ```
 
 ```{r}
+# plot is weird with labels for some reason
+# labels are not working well with the small circles, leaving as hover over for now
+labels <- circle_data |>
+  group_by(id) |>
+  slice(1) |> 
+  ungroup()
+
+
 p <- ggplot(circle_data, aes(x, y)) +
   geom_polygon_interactive(
     aes(
       group = id,
       fill = country,
       tooltip = paste0(country, ": ", country_n, " cheeses"),
-      data_id = id
+      data_id = country
     ),
     color = "white",
     alpha = 0.8
   ) +
+  #   geom_text_interactive(
+  #   data = labels,
+  #   aes(x = x, y = y, label = country, tooltip = country, data_id = country),
+  #   size = 3,
+  #   color = "black"
+  # ) +
   coord_equal() +
   theme_void() +
   theme(legend.position = "none")
