@@ -3,23 +3,83 @@ title: "TidyTuesday"
 format: html
 ---
 
-## Quarto
-
-Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
-
-## Running Code
-
-When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
-
 ```{r}
-1 + 1
+tuesdata <- tidytuesdayR::tt_load('2024-06-04')
+## OR
+tuesdata <- tidytuesdayR::tt_load(2024, week = 23)
+
+cheeses <- tuesdata$cheeses
+
+
 ```
 
-You can add options to executable code like this 
-
 ```{r}
-#| echo: false
-2 * 2
+
+library(tidyverse)
+library(packcircles)
+library(ggiraph)
+
+df_cheese_country_init <- cheeses |> 
+  mutate(
+    country = str_replace_all(country, regex("\\b[Aa]nd\\b"), ",")
+  ) |> 
+  separate_longer_delim(country, delim = ",") |> 
+  mutate(
+    country = str_trim(country) |> str_to_title()
+  ) |> 
+  drop_na(country)
+  
+# need an id of some sort to tie in circle circum data  
+df_cheese_country <- df_cheese_country_init |> 
+  distinct(cheese, country) |> 
+  count(country, name = "country_n") |> 
+  mutate(id = row_number())
+
+# start on second tier levels
+df_cheese_type <- df_cheese_country_init |> 
+  separate_longer_delim(type, ",") |> 
+  mutate(
+    type = str_trim(type) |> str_to_title()
+  ) |> 
+  drop_na(type) |> 
+  count(country, type, name = "type_n") |>
+  left_join(df_cheese_country, by = "country")
+  
+
+
+
 ```
 
-The `echo: false` option disables the printing of code (only output is displayed).
+```{r}
+outer_packing <- circleProgressiveLayout(df_cheese_country$country_n, sizetype = 'area')
+country_summary <- bind_cols(df_cheese_country, outer_packing)
+
+circle_data <- circleLayoutVertices(outer_packing, npoints = 50)
+```
+
+
+```{r}
+circle_data <- circle_data |>
+  left_join(df_cheese_country, by = "id")
+```
+
+```{r}
+p <- ggplot(circle_data, aes(x, y)) +
+  geom_polygon_interactive(
+    aes(
+      group = id,
+      fill = country,
+      tooltip = paste0(country, ": ", country_n, " cheeses"),
+      data_id = id
+    ),
+    color = "white",
+    alpha = 0.8
+  ) +
+  coord_equal() +
+  theme_void() +
+  theme(legend.position = "none")
+
+
+girafe(ggobj = p)
+```
+
